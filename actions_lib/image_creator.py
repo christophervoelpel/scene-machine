@@ -24,10 +24,10 @@ def generate_images(
     gcp_project: str,
     gcp_location: str,
     image_prompt: str,
+    image_model: str,
     amount: int = 1,
     aspect_ratio: str = "16:9",
     allow_persons: bool = True,
-    image_model: str = "gemini-3.1-flash-image",
 ) -> List[Tuple[bytes, str]]:
   """Generates images from a text prompt and returns them as bytes.
 
@@ -35,11 +35,11 @@ def generate_images(
     gcp_project: The ID of the Google Cloud project to use.
     gcp_location: The Google Cloud location to use.
     image_prompt: The text prompt describing the image to generate.
+    image_model: The image generation model to use.
     amount: The number of images to generate.
     aspect_ratio: The aspect ratio of the generated image. This is a
-      string in the form of "width:height" (e.g. "16:9").
+      string in the form of "width:height" (e.g. "16:9"). Defaults to "16:9".
     allow_persons: Whether to allow the generation of adult persons.
-    image_model: The image generation model to use.
 
   Returns:
     A list of tuples, where each tuple contains the bytes of the generated

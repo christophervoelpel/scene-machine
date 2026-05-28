@@ -30,8 +30,8 @@ def execute(
     workflow_params: Params,
     text: NodeInput,
     target_language: str,
-    gemini_model: str = "gemini-3.5-flash",
-    gemini_model_location: str = "global",
+    gemini_model: str,
+    gemini_model_location: str,
 ) -> NodeOutput:
   """Executes the translation action using Google Gemini.
 
