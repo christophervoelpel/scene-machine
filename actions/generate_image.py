@@ -34,6 +34,7 @@ def execute(
     prompt: NodeInput,
     variant_quantity: int,
     aspect_ratio: str,
+    image_model: str = 'gemini-3.1-flash-image',
 ) -> NodeOutput:
   """Executes the action.
 
@@ -43,6 +44,7 @@ def execute(
     prompt: The prompt to use to generate the image.
     variant_quantity: The number of images to generate.
     aspect_ratio: The aspect ratio of the generated image (e.g. "16:9")
+    image_model: The image generation model to use.
 
   Returns:
     A NodeOutput object containing the path to the generated image(s).
@@ -60,6 +62,7 @@ def execute(
       amount=variant_quantity,
       aspect_ratio=aspect_ratio,
       allow_persons=True,
+      image_model=image_model,
   )
 
   image_paths = []

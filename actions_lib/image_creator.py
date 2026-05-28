@@ -20,9 +20,6 @@ from google import genai
 from google.genai import types as gtypes
 
 
-IMAGE_MODEL = "gemini-2.5-flash-image"
-
-
 def generate_images(
     gcp_project: str,
     gcp_location: str,
@@ -30,6 +27,7 @@ def generate_images(
     amount: int = 1,
     aspect_ratio: str = "16:9",
     allow_persons: bool = True,
+    image_model: str = "gemini-3.1-flash-image",
 ) -> List[Tuple[bytes, str]]:
   """Generates images from a text prompt and returns them as bytes.
 
@@ -41,6 +39,7 @@ def generate_images(
     aspect_ratio: The aspect ratio of the generated image. This is a
       string in the form of "width:height" (e.g. "16:9").
     allow_persons: Whether to allow the generation of adult persons.
+    image_model: The image generation model to use.
 
   Returns:
     A list of tuples, where each tuple contains the bytes of the generated
@@ -71,7 +70,7 @@ def generate_images(
   )
 
   response = client.models.generate_content(
-      model=IMAGE_MODEL,
+      model=image_model,
       contents=[image_prompt],
       config=generate_config,
   )

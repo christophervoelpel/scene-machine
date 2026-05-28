@@ -19,7 +19,7 @@
       },
       "parameters": {
         "target_ratio": "9:16",
-        "outpainter_model": "gemini-3-pro-image-preview",
+        "outpainter_model": "gemini-3.1-pro-image",
         "outpainter_model_location": "global"
       }
     },

@@ -229,11 +229,11 @@ End users of the deployed app only need the custom
     :--------------------- | :--------------------------------------------------------- | :-------------------------
     `PROJECT`              | Your Google Cloud Platform Project ID.                     | Required
     `REGION`               | Deployment region for various GCP resources.               | e.g., `us-central1`
-    `GEMINI_MODEL`         | Text generation model for prompts and analysis.            | `gemini-2.5-pro`, `gemini-3.1-pro-preview`
+    `GEMINI_MODEL`         | Text generation model for prompts and analysis.            | `gemini-3.5-flash`, `gemini-2.5-pro`
     `GEMINI_REGION`        | Region for model invocation.                               | Check locations availability. Recommended `global`.
     `VEO_MODEL`            | Video generation model.                                    | `veo-3.1-generate-001`
     `VEO_REGION`           | Region for Veo model invocation.                           | Check availability. Recommended `global`.
-    `OUTPAINTER_MODEL`     | Image outpainting model for borders or fill.               | `gemini-2.5-flash-image`
+    `OUTPAINTER_MODEL`     | Image outpainting model for borders or fill.               | `gemini-3.1-pro-image` (Nano Banana Pro), `gemini-3.1-flash-image` (Nano Banana 2)
     `OUTPAINTER_REGION`    | Region for outpainter model.                               | Check availability. Recommended `global`.
     `API_GATEWAY_REGION`   | Region for API Gateway deployment.                         | Supported: `us-central1`, `europe-west1`, etc.
     `APP_ENGINE_REGION`    | Region for App Engine application.                         | Supported locations listed in config.

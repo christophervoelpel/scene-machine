@@ -72,6 +72,10 @@ def _get_thinking_config(model: str):
         "gemini-2.5-flash-lite"
     ):
         return types.ThinkingConfig(thinking_budget=0)
+    elif model.startswith("gemini-3"):
+        # Gemini 3 models manage their thinking budget internally; an explicit
+        # budget is not required, so we defer to the model's own default.
+        return None
     return None
 
 
