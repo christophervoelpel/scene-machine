@@ -18,6 +18,7 @@ import {CommonModule} from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   inject,
   OnDestroy,
   OnInit,
@@ -37,6 +38,8 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatInputModule} from '@angular/material/input';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
 import {ConfigService, GcsFile, toDecimals} from '../../services/config/config';
+import {ImageImportService} from '../../services/image-import/image-import';
+import {MediaService} from '../../services/media/media';
 import {RemixEngineService} from '../../services/remix-engine/remix-engine';
 import {SceneTiming} from '../composition';
 import {SceneSelector} from '../scene-selector/scene-selector';
@@ -80,8 +83,10 @@ export class ImageUploadDialog implements OnInit, OnDestroy {
     sceneTimings: SceneTiming[];
   } | null;
   private matSnackBar = inject(MatSnackBar);
+  private mediaService = inject(MediaService);
   private remixEngineService = inject(RemixEngineService);
   private configService = inject(ConfigService);
+  private imageImport = inject(ImageImportService);
 
   selectedFile = signal<File | null>(null);
   existingFileName = signal<string | null>(null);
@@ -94,6 +99,8 @@ export class ImageUploadDialog implements OnInit, OnDestroy {
   );
   isInvalidTimeRange = computed(() => this.endSeconds() < this.startSeconds());
   isUploading = signal(false);
+  /** True while an image is being dragged over the drop zone. */
+  isDragOver = signal(false);
 
   imageUrl = signal<string | null>(null);
   imageWidthPixels = signal<number>(0);
@@ -117,8 +124,14 @@ export class ImageUploadDialog implements OnInit, OnDestroy {
       this.imageHeightPixels.set(this.data.overlay.heightPixels);
       this.pixelsFromTop.set(this.data.overlay.pixelsFromTop);
       this.pixelsFromLeft.set(this.data.overlay.pixelsFromLeft);
-      if (this.data.overlay.file?.url) {
-        this.imageUrl.set(this.data.overlay.file.url);
+      if (this.data.overlay.file) {
+        // Resolves to a freshly signed URL (or the stored URL for path-less
+        // legacy refs).
+        void this.mediaService.resolve(this.data.overlay.file).then(url => {
+          if (url && !this.selectedFile()) {
+            this.imageUrl.set(url);
+          }
+        });
       }
     }
   }
@@ -126,15 +139,29 @@ export class ImageUploadDialog implements OnInit, OnDestroy {
   onDragOver(event: DragEvent) {
     event.preventDefault();
     event.stopPropagation();
+    this.isDragOver.set(true);
+  }
+
+  onDragLeave(event: DragEvent) {
+    if (this.imageImport.hasLeftDropZone(event)) {
+      this.isDragOver.set(false);
+    }
   }
 
   onDrop(event: DragEvent) {
     event.preventDefault();
     event.stopPropagation();
-    const files = event.dataTransfer?.files;
-    if (files && files.length > 0) {
-      this.processFile(files[0]);
-    }
+    this.isDragOver.set(false);
+    void this.imageImport.importFromDrop(
+      event.dataTransfer,
+      file => this.processFile(file),
+      reason =>
+        this.matSnackBar.open(
+          this.imageImport.importFailureMessage(reason),
+          'Dismiss',
+          {duration: 5000},
+        ),
+    );
   }
 
   onFileSelected(event: Event): void {
@@ -143,6 +170,22 @@ export class ImageUploadDialog implements OnInit, OnDestroy {
       this.processFile(input.files[0]);
     }
     input.value = '';
+  }
+
+  /**
+   * Paste a copied image to select it for the overlay. Only image pastes are
+   * consumed; text pastes (e.g. into the size/time fields) are left untouched.
+   */
+  @HostListener('document:paste', ['$event'])
+  onPaste(event: ClipboardEvent): void {
+    const images = this.imageImport.imageFilesFromDataTransfer(
+      event.clipboardData,
+    );
+    if (images.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    this.processFile(images[0]);
   }
 
   onImageLoad(event: Event) {

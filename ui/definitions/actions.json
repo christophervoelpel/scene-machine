@@ -49,6 +49,12 @@
     "parameters": {
       "target_language": {
         "type": "string"
+      },
+      "gemini_model": {
+        "type": "string"
+      },
+      "gemini_model_location": {
+        "type": "string"
       }
     },
     "output": {
@@ -101,6 +107,9 @@
       },
       "gemini_model": {
         "type": "string"
+      },
+      "gemini_model_location": {
+        "type": "string"
       }
     },
     "output": {
@@ -130,6 +139,12 @@
     },
     "parameters": {
       "target_ratio": {
+        "type": "string"
+      },
+      "image_model": {
+        "type": "string"
+      },
+      "image_model_location": {
         "type": "string"
       }
     },
@@ -273,6 +288,12 @@
       "variant_quantity": {
         "type": "int"
       },
+      "image_model": {
+        "type": "string"
+      },
+      "image_model_location": {
+        "type": "string"
+      },
       "aspect_ratio": {
         "type": "string"
       }
@@ -374,6 +395,9 @@
       },
       "response_schema": {
         "type": "object"
+      },
+      "gemini_model": {
+        "type": "string"
       }
     },
     "output": {

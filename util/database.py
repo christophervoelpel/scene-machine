@@ -25,6 +25,7 @@ from google.cloud.firestore import DocumentSnapshot
 
 
 MAX_ATTEMPTS = 75
+TASK_LOCK_EXPIRATION_HOURS = 12
 
 
 def firestore_to_json_serialisable(data: Any) -> Any:
@@ -360,6 +361,80 @@ class Database:
         },
         merge=True,
     )
+
+  def _get_task_lock_ref(
+      self,
+      execution_id: str,
+      node_id: str,
+      group_id: typing.Union[str, int],
+  ) -> firestore.DocumentReference:
+    """Gets the document reference for a task lock.
+
+    Args:
+      execution_id: The workflow's execution ID.
+      node_id: The node ID.
+      group_id: The group ID.
+
+    Returns:
+      The document reference.
+    """
+    doc_id = f'{execution_id}_{node_id}_{group_id}'
+    return self.db.collection('cloudTasks').document(doc_id)
+
+  def acquire_task_lock(
+      self,
+      execution_id: str,
+      node_id: str,
+      group_id: typing.Union[str, int],
+  ) -> bool:
+    """Acquires a lock for a task transactionally.
+
+    Args:
+      execution_id: The workflow's execution ID.
+      node_id: The node ID.
+      group_id: The group ID.
+
+    Returns:
+      True if the lock was successfully acquired (first to trigger),
+      False otherwise.
+    """
+    doc_ref = self._get_task_lock_ref(execution_id, node_id, group_id)
+    expires_at = datetime.datetime.now(
+        datetime.timezone.utc
+    ) + datetime.timedelta(hours=TASK_LOCK_EXPIRATION_HOURS)
+
+    @firestore.transactional
+    def create_if_not_exists(
+        transaction: firestore.Transaction,
+        doc_ref: firestore.DocumentReference,
+        expires_at: datetime.datetime,
+    ) -> bool:
+      snapshot = doc_ref.get(transaction=transaction)
+      if snapshot.exists:
+        return False
+      transaction.set(doc_ref, {'expiresAt': expires_at})
+      return True
+
+    return create_if_not_exists(
+        self.db.transaction(max_attempts=MAX_ATTEMPTS),
+        doc_ref,
+        expires_at,
+    )
+
+  def release_task_lock(
+      self,
+      execution_id: str,
+      node_id: str,
+      group_id: typing.Union[str, int],
+  ) -> None:
+    """Releases the lock for a task.
+
+    Args:
+      execution_id: The workflow's execution ID.
+      node_id: The node ID.
+      group_id: The group ID.
+    """
+    self._get_task_lock_ref(execution_id, node_id, group_id).delete()
 
   def get_documents(self, execution_id: str) -> typing.Iterable[typing.Any]:
     """Gets all node state documents within the specified workflow execution.

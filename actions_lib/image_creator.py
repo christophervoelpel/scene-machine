@@ -19,14 +19,15 @@ from typing import List, Tuple
 from google import genai
 from google.genai import types as gtypes
 
-
-IMAGE_MODEL = "gemini-2.5-flash-image"
+from common import get_api_client_headers
+from common import TrackingType
 
 
 def generate_images(
     gcp_project: str,
     gcp_location: str,
     image_prompt: str,
+    image_model: str,
     amount: int = 1,
     aspect_ratio: str = "16:9",
     allow_persons: bool = True,
@@ -37,9 +38,10 @@ def generate_images(
     gcp_project: The ID of the Google Cloud project to use.
     gcp_location: The Google Cloud location to use.
     image_prompt: The text prompt describing the image to generate.
+    image_model: The image generation model to use.
     amount: The number of images to generate.
     aspect_ratio: The aspect ratio of the generated image. This is a
-      string in the form of "width:height" (e.g. "16:9").
+      string in the form of "width:height" (e.g. "16:9"). Defaults to "16:9".
     allow_persons: Whether to allow the generation of adult persons.
 
   Returns:
@@ -51,7 +53,12 @@ def generate_images(
       or if the resulting images lack data.
   """
   client = genai.Client(
-      vertexai=True, project=gcp_project, location=gcp_location
+      vertexai=True,
+      project=gcp_project,
+      location=gcp_location,
+      http_options=gtypes.HttpOptions(
+          headers=get_api_client_headers(TrackingType.IMAGE),
+      ),
   )
 
   # Map boolean to the expected PersonGeneration string values
@@ -71,7 +78,7 @@ def generate_images(
   )
 
   response = client.models.generate_content(
-      model=IMAGE_MODEL,
+      model=image_model,
       contents=[image_prompt],
       config=generate_config,
   )

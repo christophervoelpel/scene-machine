@@ -18,11 +18,9 @@ import {DatePipe} from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   signal,
 } from '@angular/core';
-import {Auth} from '@angular/fire/auth';
 import {MatButtonModule} from '@angular/material/button';
 import {MatCardModule} from '@angular/material/card';
 import {MatDialog, MatDialogModule} from '@angular/material/dialog';
@@ -30,11 +28,14 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatMenuModule} from '@angular/material/menu';
 import {MatSlideToggleModule} from '@angular/material/slide-toggle';
 import {RouterModule} from '@angular/router';
+import {env} from '../../env';
 import {
   ConfigService,
   ProjectConfig,
   ThumbnailMaterial,
 } from '../services/config/config';
+import {MediaService} from '../services/media/media';
+import {MediaSrcPipe} from '../services/media/media-src.pipe';
 import {ConfirmProjectDeleteDialog} from '../shared/confirm-project-delete-dialog';
 
 /**
@@ -51,6 +52,7 @@ import {ConfirmProjectDeleteDialog} from '../shared/confirm-project-delete-dialo
     DatePipe,
     MatDialogModule,
     MatMenuModule,
+    MediaSrcPipe,
   ],
   templateUrl: './homepage.html',
   styleUrl: './homepage.scss',
@@ -58,24 +60,23 @@ import {ConfirmProjectDeleteDialog} from '../shared/confirm-project-delete-dialo
 })
 export class Homepage {
   private config = inject(ConfigService);
-  private auth = inject(Auth);
   private dialog = inject(MatDialog);
+  private mediaService = inject(MediaService);
   projects = signal<ProjectConfig[]>([]);
   theme = this.config.theme;
   primaryColor = this.config.primaryColor;
-  myProjectsOnly = signal<boolean>(true);
-  userEmail = computed(() => this.auth.currentUser?.email ?? null);
+  // Default to "my projects" only when there is a verified identity to filter
+  // by. Deployed (controlPlaneMode 'iap') has one, so createdBy=me works. Local
+  // dev (controlPlaneMode 'none') has no verified identity and the backend
+  // returns 400 for createdBy=me, so default to off and fetch all projects.
+  myProjectsOnly = signal<boolean>(env.controlPlaneMode === 'iap');
 
   constructor() {
-    void this.auth.authStateReady().then(() => {
-      this.fetchProjects();
-    });
+    this.fetchProjects();
   }
 
   fetchProjects() {
-    const createdBy = this.myProjectsOnly()
-      ? (this.auth.currentUser?.email ?? undefined)
-      : undefined;
+    const createdBy = this.myProjectsOnly() || undefined;
     void this.config.getProjects(createdBy).then(projects => {
       // Sort by lastEdited descending
       projects.sort((a, b) => {
@@ -84,6 +85,35 @@ export class Homepage {
         return dateB - dateA;
       });
       this.projects.set(projects);
+      this.presignThumbnails(projects);
+    });
+  }
+
+  /**
+   * Pre-warms the signed-URL cache for every visible thumbnail with one batch
+   * `/api/signUrl` request, so each card's `| mediaSrc` resolves from the cache
+   * instead of firing its own request (one IAM signBlob RPC per card).
+   */
+  private presignThumbnails(projects: ProjectConfig[]) {
+    const paths: string[] = [];
+    for (const project of projects) {
+      const thumb = this.getThumbnailData(project);
+      if (thumb.highQualityThumbnail?.path) {
+        paths.push(thumb.highQualityThumbnail.path);
+      }
+      if (thumb.showReference && thumb.referenceImage?.path) {
+        paths.push(thumb.referenceImage.path);
+      }
+      if (thumb.showVideo && thumb.videoUrl?.path) {
+        paths.push(thumb.videoUrl.path);
+      }
+    }
+    if (paths.length === 0) {
+      return;
+    }
+    // Best-effort: each mediaSrc pipe re-signs its own path on a cache miss.
+    void this.mediaService.signUrls(paths).catch((error: unknown) => {
+      console.error('Failed to pre-sign project thumbnails', error);
     });
   }
 
@@ -105,8 +135,8 @@ export class Homepage {
     if (this.config.isProvidedVideoScene(firstScene)) {
       return {
         lowQualityThumbnail: firstScene.lowQualityThumbnail,
-        highQualityThumbnail: firstScene.highQualityThumbnail?.url,
-        videoUrl: firstScene.video?.url,
+        highQualityThumbnail: firstScene.highQualityThumbnail,
+        videoUrl: firstScene.video,
       };
     }
     if (this.config.isGeneratedScene(firstScene)) {
@@ -118,10 +148,10 @@ export class Homepage {
           selectedCandidate?.lowQualityThumbnail ||
           firstScene.lowQualityThumbnail,
         highQualityThumbnail:
-          selectedCandidate?.highQualityThumbnail?.url ||
-          firstScene.highQualityThumbnail?.url,
-        referenceImage: firstScene.referenceImage?.url,
-        videoUrl: selectedCandidate?.video?.url,
+          selectedCandidate?.highQualityThumbnail ||
+          firstScene.highQualityThumbnail,
+        referenceImage: firstScene.referenceImage,
+        videoUrl: selectedCandidate?.video,
       };
     }
     return {};
@@ -147,10 +177,22 @@ export class Homepage {
   deleteProject(projectId: string) {
     const dialogRef = this.dialog.open(ConfirmProjectDeleteDialog);
     dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        void this.config.deleteProject(projectId);
-        this.fetchProjects();
+      if (!result) {
+        return;
       }
+      void (async () => {
+        try {
+          // Await the server delete before re-reading the list, otherwise the
+          // refetch GET races the still-in-flight DELETE and the just-deleted
+          // project frequently reappears.
+          await this.config.deleteProject(projectId);
+        } catch {
+          // If the delete failed, leave the existing list untouched so the
+          // project is not falsely shown as deleted. Skip the refetch.
+          return;
+        }
+        this.fetchProjects();
+      })();
     });
   }
 }

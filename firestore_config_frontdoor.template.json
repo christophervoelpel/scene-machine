@@ -12,9 +12,6 @@
     "gcsBucket": {
       "stringValue": "${GCS_BUCKET}"
     },
-    "gatewayApiKey": {
-      "stringValue": "${API_KEY}"
-    },
     "qualityLevel": {
       "integerValue": "20"
     },
@@ -36,11 +33,11 @@
     "veoLocation": {
       "stringValue": "${VEO_REGION}"
     },
-    "outpainterModel": {
-      "stringValue": "${OUTPAINTER_MODEL}"
+    "imageModel": {
+      "stringValue": "${IMAGE_MODEL}"
     },
-    "outpainterLocation": {
-      "stringValue": "${OUTPAINTER_REGION}"
+    "imageLocation": {
+      "stringValue": "${IMAGE_MODEL_REGION}"
     },
     "generateAudio": {
       "booleanValue": false
@@ -53,9 +50,6 @@
     },
     "geminiModel": {
       "stringValue": "${GEMINI_MODEL}"
-    },
-    "gatewayBaseUrl": {
-      "stringValue": "https://${API_GATEWAY_HOST}"
     }
   }
 }
